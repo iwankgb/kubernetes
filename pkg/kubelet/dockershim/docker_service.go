@@ -63,8 +63,6 @@ const (
 
 	dockerNetNSFmt = "/proc/%v/ns/net"
 
-	defaultSeccompProfile = "unconfined"
-
 	// Internal docker labels used to identify whether a container is a sandbox
 	// or a regular container.
 	// TODO: This is not backward compatible with older containers. We will
