@@ -17,7 +17,6 @@ limitations under the License.
 package deviceplugin
 
 import (
-	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -34,12 +33,12 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	v1helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
 	pluginapi "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1alpha"
+	"k8s.io/kubernetes/pkg/kubelet/checkpointmanager"
+	"k8s.io/kubernetes/pkg/kubelet/checkpointmanager/errors"
 	"k8s.io/kubernetes/pkg/kubelet/config"
 	"k8s.io/kubernetes/pkg/kubelet/lifecycle"
 	"k8s.io/kubernetes/pkg/kubelet/metrics"
-	utilstore "k8s.io/kubernetes/pkg/kubelet/util/store"
 	"k8s.io/kubernetes/pkg/scheduler/schedulercache"
-	utilfs "k8s.io/kubernetes/pkg/util/filesystem"
 )
 
 // ActivePodsFunc is a function that returns a list of pods to reconcile.
@@ -83,8 +82,8 @@ type ManagerImpl struct {
 	allocatedDevices map[string]sets.String
 
 	// podDevices contains pod to allocated device mapping.
-	podDevices podDevices
-	store      utilstore.Store
+	podDevices        podDevices
+	checkpointManager checkpointmanager.CheckpointManager
 }
 
 type sourcesReadyStub struct{}
@@ -120,11 +119,11 @@ func newManagerImpl(socketPath string) (*ManagerImpl, error) {
 	// Before that, initializes them to perform no-op operations.
 	manager.activePods = func() []*v1.Pod { return []*v1.Pod{} }
 	manager.sourcesReady = &sourcesReadyStub{}
-	var err error
-	manager.store, err = utilstore.NewFileStore(dir, utilfs.DefaultFs{})
+	checkpointManager, err := checkpointmanager.NewCheckpointManager(dir)
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize device plugin checkpointing store: %+v", err)
+		return nil, fmt.Errorf("failed to initialize checkpoint manager: %+v", err)
 	}
+	manager.checkpointManager = checkpointManager
 
 	return manager, nil
 }
@@ -432,33 +431,18 @@ func (m *ManagerImpl) GetCapacity() (v1.ResourceList, v1.ResourceList, []string)
 	return capacity, allocatable, deletedResources
 }
 
-// checkpointData struct is used to store pod to device allocation information
-// and registered device information in a checkpoint file.
-// TODO: add version control when we need to change checkpoint format.
-type checkpointData struct {
-	PodDeviceEntries  []podDevicesCheckpointEntry
-	RegisteredDevices map[string][]string
-}
-
 // Checkpoints device to container allocation information to disk.
 func (m *ManagerImpl) writeCheckpoint() error {
 	m.mutex.Lock()
-	data := checkpointData{
-		PodDeviceEntries:  m.podDevices.toCheckpointData(),
-		RegisteredDevices: make(map[string][]string),
-	}
+	data := NewDevicePluginCheckpoint()
+	data.(*checkpointData).podDeviceEntries = m.podDevices.toCheckpointData()
 	for resource, devices := range m.healthyDevices {
-		data.RegisteredDevices[resource] = devices.UnsortedList()
+		data.(*checkpointData).RegisteredDevices[resource] = devices.UnsortedList()
 	}
 	m.mutex.Unlock()
-
-	dataJSON, err := json.Marshal(data)
+	err := m.checkpointManager.CreateCheckpoint(kubeletDevicePluginCheckpoint, data)
 	if err != nil {
-		return err
-	}
-	err = m.store.Write(kubeletDevicePluginCheckpoint, dataJSON)
-	if err != nil {
-		return fmt.Errorf("failed to write deviceplugin checkpoint file %q: %v", kubeletDevicePluginCheckpoint, err)
+		return fmt.Errorf("failed to write checkpoint file %q: %v", kubeletDevicePluginCheckpoint, err)
 	}
 	return nil
 }
@@ -466,22 +450,20 @@ func (m *ManagerImpl) writeCheckpoint() error {
 // Reads device to container allocation information from disk, and populates
 // m.allocatedDevices accordingly.
 func (m *ManagerImpl) readCheckpoint() error {
-	content, err := m.store.Read(kubeletDevicePluginCheckpoint)
+	checkpoint := NewDevicePluginCheckpoint()
+	err := m.checkpointManager.GetCheckpoint(kubeletDevicePluginCheckpoint, checkpoint)
 	if err != nil {
-		if err == utilstore.ErrKeyNotFound {
+		if err == errors.CheckpointNotFoundError {
+			glog.Warningf("Failed to retrieve checkpoint for %q: %v", kubeletDevicePluginCheckpoint, err)
 			return nil
 		}
-		return fmt.Errorf("failed to read checkpoint file %q: %v", kubeletDevicePluginCheckpoint, err)
+		return err
 	}
-	glog.V(4).Infof("Read checkpoint file %s\n", kubeletDevicePluginCheckpoint)
 	var data checkpointData
-	if err := json.Unmarshal(content, &data); err != nil {
-		return fmt.Errorf("failed to unmarshal deviceplugin checkpoint data: %v", err)
-	}
-
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
-	m.podDevices.fromCheckpointData(data.PodDeviceEntries)
+	data = *(checkpoint.(*checkpointData))
+	m.podDevices.fromCheckpointData(data.podDeviceEntries)
 	m.allocatedDevices = m.podDevices.devices()
 	for resource, devices := range data.RegisteredDevices {
 		// TODO: Support Checkpointing for unhealthy devices as well

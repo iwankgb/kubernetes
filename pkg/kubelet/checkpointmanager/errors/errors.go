@@ -14,18 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package dockershim
+package errors
 
-import (
-	"testing"
+import "fmt"
 
-	"github.com/stretchr/testify/assert"
-)
-
-func TestPodSandboxCheckpoint(t *testing.T) {
-
-	checkpoint := NewPodSandboxCheckpoint("ns1", "sandbox1")
-	assert.Equal(t, schemaVersion, checkpoint.(*PodSandboxCheckpoint).Version)
-	assert.Equal(t, "ns1", checkpoint.(*PodSandboxCheckpoint).Namespace)
-	assert.Equal(t, "sandbox1", checkpoint.(*PodSandboxCheckpoint).Name)
-}
+var CorruptCheckpointError = fmt.Errorf("checkpoint is corrupted.")
+var CheckpointNotFoundError = fmt.Errorf("checkpoint is not found.")

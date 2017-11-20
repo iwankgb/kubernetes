@@ -21,6 +21,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/util/sets"
 	pluginapi "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1alpha"
+	//	"k8s.io/kubernetes/pkg/kubelet/checkpointmanager"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 )
 
@@ -122,15 +123,6 @@ func (pdev podDevices) devices() map[string]sets.String {
 		}
 	}
 	return ret
-}
-
-// podDevicesCheckpointEntry is used to record <pod, container> to device allocation information.
-type podDevicesCheckpointEntry struct {
-	PodUID        string
-	ContainerName string
-	ResourceName  string
-	DeviceIDs     []string
-	AllocResp     []byte
 }
 
 // Turns podDevices to checkpointData.

@@ -9,6 +9,7 @@ load(
 go_library(
     name = "go_default_library",
     srcs = [
+        "checkpoint.go",
         "device_plugin_stub.go",
         "endpoint.go",
         "manager.go",
@@ -27,6 +28,9 @@ go_library(
         "//pkg/kubelet/util/store:go_default_library",
         "//pkg/scheduler/schedulercache:go_default_library",
         "//pkg/util/filesystem:go_default_library",
+        "//pkg/kubelet/checkpointmanager:go_default_library",
+        "//pkg/kubelet/checkpointmanager/errors:go_default_library",
+        "//pkg/util/hash:go_default_library",
         "//vendor/github.com/golang/glog:go_default_library",
         "//vendor/golang.org/x/net/context:go_default_library",
         "//vendor/google.golang.org/grpc:go_default_library",
@@ -59,6 +63,7 @@ go_test(
     importpath = "k8s.io/kubernetes/pkg/kubelet/cm/deviceplugin",
     deps = [
         "//pkg/kubelet/apis/deviceplugin/v1alpha:go_default_library",
+        "//pkg/kubelet/checkpointmanager:go_default_library",
         "//pkg/kubelet/lifecycle:go_default_library",
         "//pkg/kubelet/util/store:go_default_library",
         "//pkg/scheduler/schedulercache:go_default_library",

@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"time"
@@ -35,6 +36,7 @@ import (
 	internalapi "k8s.io/kubernetes/pkg/kubelet/apis/cri"
 	runtimeapi "k8s.io/kubernetes/pkg/kubelet/apis/cri/v1alpha1/runtime"
 	"k8s.io/kubernetes/pkg/kubelet/apis/kubeletconfig"
+	"k8s.io/kubernetes/pkg/kubelet/checkpointmanager"
 	kubecm "k8s.io/kubernetes/pkg/kubelet/cm"
 	kubecontainer "k8s.io/kubernetes/pkg/kubelet/container"
 	"k8s.io/kubernetes/pkg/kubelet/dockershim/cm"
@@ -184,7 +186,8 @@ func NewDockerService(config *ClientConfig, podSandboxImage string, streamingCon
 	client := NewDockerClientFromConfig(config)
 
 	c := libdocker.NewInstrumentedInterface(client)
-	checkpointHandler, err := NewPersistentCheckpointHandler(dockershimRootDir)
+
+	checkpointManager, err := checkpointmanager.NewCheckpointManager(filepath.Join(dockershimRootDir, sandboxCheckpointDir))
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +201,7 @@ func NewDockerService(config *ClientConfig, podSandboxImage string, streamingCon
 			execHandler: &NativeExecHandler{},
 		},
 		containerManager:  cm.NewContainerManager(cgroupsName, client),
-		checkpointHandler: checkpointHandler,
+		checkpointManager: checkpointManager,
 		disableSharedPID:  disableSharedPID,
 		networkReady:      make(map[string]bool),
 	}
@@ -296,7 +299,7 @@ type dockerService struct {
 	containerManager cm.ContainerManager
 	// cgroup driver used by Docker runtime.
 	cgroupDriver      string
-	checkpointHandler CheckpointHandler
+	checkpointManager checkpointmanager.CheckpointManager
 	// caches the version of the runtime.
 	// To be compatible with multiple docker versions, we need to perform
 	// version checking for some operations. Use this cache to avoid querying
@@ -363,7 +366,8 @@ func (ds *dockerService) GetNetNS(podSandboxID string) (string, error) {
 // GetPodPortMappings returns the port mappings of the given podSandbox ID.
 func (ds *dockerService) GetPodPortMappings(podSandboxID string) ([]*hostport.PortMapping, error) {
 	// TODO: get portmappings from docker labels for backward compatibility
-	checkpoint, err := ds.checkpointHandler.GetCheckpoint(podSandboxID)
+	checkpoint := NewPodSandboxCheckpoint("", "")
+	err := ds.checkpointManager.GetCheckpoint(podSandboxID, checkpoint)
 	// Return empty portMappings if checkpoint is not found
 	if err != nil {
 		if err == utilstore.ErrKeyNotFound {
@@ -372,8 +376,9 @@ func (ds *dockerService) GetPodPortMappings(podSandboxID string) ([]*hostport.Po
 		return nil, err
 	}
 
-	portMappings := make([]*hostport.PortMapping, 0, len(checkpoint.Data.PortMappings))
-	for _, pm := range checkpoint.Data.PortMappings {
+	checkpointedPortMappings := checkpoint.(*PodSandboxCheckpoint).Data.PortMappings
+	portMappings := make([]*hostport.PortMapping, 0, len(checkpointedPortMappings))
+	for _, pm := range checkpointedPortMappings {
 		proto := toAPIProtocol(*pm.Protocol)
 		portMappings = append(portMappings, &hostport.PortMapping{
 			HostPort:      *pm.HostPort,

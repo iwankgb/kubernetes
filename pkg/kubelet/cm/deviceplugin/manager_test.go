@@ -33,10 +33,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	pluginapi "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1alpha"
+	"k8s.io/kubernetes/pkg/kubelet/checkpointmanager"
 	"k8s.io/kubernetes/pkg/kubelet/lifecycle"
-	utilstore "k8s.io/kubernetes/pkg/kubelet/util/store"
 	"k8s.io/kubernetes/pkg/scheduler/schedulercache"
-	utilfs "k8s.io/kubernetes/pkg/util/filesystem"
 )
 
 const (
@@ -269,21 +268,52 @@ func constructAllocResp(devices, mounts, envs map[string]string) *pluginapi.Allo
 	return resp
 }
 
+type mockCheckpointManager struct {
+	checkpoint map[string]*checkpointData
+}
+
+func (ckm *mockCheckpointManager) CreateCheckpoint(checkpointKey string, checkpoint checkpointmanager.Checkpoint) error {
+	ckm.checkpoint[checkpointKey] = (checkpoint.(*checkpointData))
+	fmt.Printf("Create: %+v \n", ckm.checkpoint)
+	return nil
+}
+
+func (ckm *mockCheckpointManager) GetCheckpoint(checkpointKey string, checkpoint checkpointmanager.Checkpoint) error {
+	*(checkpoint.(*checkpointData)) = *(ckm.checkpoint[checkpointKey])
+	return nil
+}
+
+func (ckm *mockCheckpointManager) RemoveCheckpoint(checkpointKey string) error {
+	_, ok := ckm.checkpoint[checkpointKey]
+	if ok {
+		delete(ckm.checkpoint, "moo")
+	}
+	return nil
+}
+
+func (ckm *mockCheckpointManager) ListCheckpoints() ([]string, error) {
+	var keys []string
+	for key, _ := range ckm.checkpoint {
+		keys = append(keys, key)
+	}
+	return keys, nil
+}
+
+func newMockCheckpointManager() checkpointmanager.CheckpointManager {
+	return &mockCheckpointManager{checkpoint: make(map[string]*checkpointData)}
+}
+
 func TestCheckpoint(t *testing.T) {
 	resourceName1 := "domain1.com/resource1"
 	resourceName2 := "domain2.com/resource2"
-
 	as := assert.New(t)
-	tmpDir, err := ioutil.TempDir("", "checkpoint")
-	as.Nil(err)
-	defer os.RemoveAll(tmpDir)
+	ckm := newMockCheckpointManager()
 	testManager := &ManagerImpl{
-		socketdir:        tmpDir,
-		healthyDevices:   make(map[string]sets.String),
-		allocatedDevices: make(map[string]sets.String),
-		podDevices:       make(podDevices),
+		allDevices:        make(map[string]sets.String),
+		healthyDevices:    make(map[string]sets.String),
+		podDevices:        make(podDevices),
+		checkpointManager: ckm,
 	}
-	testManager.store, _ = utilstore.NewFileStore("/tmp/", utilfs.DefaultFs{})
 
 	testManager.podDevices.insert("pod1", "con1", resourceName1,
 		constructDevices([]string{"dev1", "dev2"}),
@@ -317,7 +347,7 @@ func TestCheckpoint(t *testing.T) {
 	expectedAllocatedDevices := testManager.podDevices.devices()
 	expectedAllDevices := testManager.healthyDevices
 
-	err = testManager.writeCheckpoint()
+	err := testManager.writeCheckpoint()
 
 	as.Nil(err)
 	testManager.podDevices = make(podDevices)
@@ -394,17 +424,18 @@ func makePod(limits v1.ResourceList) *v1.Pod {
 
 func getTestManager(tmpDir string, activePods ActivePodsFunc, testRes []TestResource) *ManagerImpl {
 	monitorCallback := func(resourceName string, added, updated, deleted []pluginapi.Device) {}
+	ckm := newMockCheckpointManager()
 	testManager := &ManagerImpl{
-		socketdir:        tmpDir,
-		callback:         monitorCallback,
-		healthyDevices:   make(map[string]sets.String),
-		allocatedDevices: make(map[string]sets.String),
-		endpoints:        make(map[string]endpoint),
-		podDevices:       make(podDevices),
-		activePods:       activePods,
-		sourcesReady:     &sourcesReadyStub{},
+		socketdir:         tmpDir,
+		callback:          monitorCallback,
+		healthyDevices:    make(map[string]sets.String),
+		allocatedDevices:  make(map[string]sets.String),
+		endpoints:         make(map[string]endpoint),
+		podDevices:        make(podDevices),
+		activePods:        activePods,
+		sourcesReady:      &sourcesReadyStub{},
+		checkpointManager: ckm,
 	}
-	testManager.store, _ = utilstore.NewFileStore("/tmp/", utilfs.DefaultFs{})
 	for _, res := range testRes {
 		testManager.healthyDevices[res.resourceName] = sets.NewString()
 		for _, dev := range res.devs {
@@ -693,13 +724,14 @@ func TestSanitizeNodeAllocatable(t *testing.T) {
 	as := assert.New(t)
 	monitorCallback := func(resourceName string, added, updated, deleted []pluginapi.Device) {}
 
+	ckm := newMockCheckpointManager()
 	testManager := &ManagerImpl{
-		callback:         monitorCallback,
-		healthyDevices:   make(map[string]sets.String),
-		allocatedDevices: make(map[string]sets.String),
-		podDevices:       make(podDevices),
+		callback:          monitorCallback,
+		allDevices:        make(map[string]sets.String),
+		healthyDevices:    make(map[string]sets.String),
+		podDevices:        make(podDevices),
+		checkpointManager: ckm,
 	}
-	testManager.store, _ = utilstore.NewFileStore("/tmp/", utilfs.DefaultFs{})
 	// require one of resource1 and one of resource2
 	testManager.allocatedDevices[resourceName1] = sets.NewString()
 	testManager.allocatedDevices[resourceName1].Insert(devID1)
