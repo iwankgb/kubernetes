@@ -46,7 +46,7 @@ type CheckpointData struct {
 	Name         string
 	PortMappings []*PortMapping
 	HostNetwork  bool
-	CheckSum     uint64
+	Checksum     uint64
 }
 
 func newFakeCheckpoint(name string, portMappings []*PortMapping, hostnetwork bool) Checkpoint {
@@ -64,34 +64,34 @@ func (cp *CheckpointData) MarshalCheckpoint() ([]byte, error) {
 
 func (cp *CheckpointData) UnmarshalCheckpoint(blob []byte) error {
 	err := json.Unmarshal(blob, cp)
-	cksum := cp.CheckSum
+	cksum := cp.Checksum
 	if cksum != cp.GetChecksum() {
-		return errors.CorruptCheckpointError
+		return errors.ErrCorruptCheckpoint
 	}
 	return err
 }
 
 func (cp *CheckpointData) GetChecksum() uint64 {
-	orig := cp.CheckSum
-	cp.CheckSum = 0
+	orig := cp.Checksum
+	cp.Checksum = 0
 	hash := fnv.New32a()
 	hashutil.DeepHashObject(hash, *cp)
-	cp.CheckSum = orig
+	cp.Checksum = orig
 	return uint64(hash.Sum32())
 }
 
 func (cp *CheckpointData) VerifyChecksum() error {
-	if cp.CheckSum != cp.GetChecksum() {
-		return errors.CorruptCheckpointError
+	if cp.Checksum != cp.GetChecksum() {
+		return errors.ErrCorruptCheckpoint
 	}
 	return nil
 }
 func (cp *CheckpointData) UpdateChecksum() {
-	cp.CheckSum = cp.GetChecksum()
+	cp.Checksum = cp.GetChecksum()
 }
 
 func NewTestCheckpointManager() CheckpointManager {
-	return &CheckpointManagerImpl{store: utilstore.NewMemStore()}
+	return &Impl{store: utilstore.NewMemStore()}
 }
 
 func TestCheckpointManager(t *testing.T) {

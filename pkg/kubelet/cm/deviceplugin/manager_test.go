@@ -17,7 +17,6 @@ limitations under the License.
 package deviceplugin
 
 import (
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -293,10 +292,14 @@ func (ckm *mockCheckpointManager) RemoveCheckpoint(checkpointKey string) error {
 
 func (ckm *mockCheckpointManager) ListCheckpoints() ([]string, error) {
 	var keys []string
-	for key, _ := range ckm.checkpoint {
+	for key := range ckm.checkpoint {
 		keys = append(keys, key)
 	}
 	return keys, nil
+}
+
+func (ckm *mockCheckpointManager) GetCheckpointDir() string {
+	return ""
 }
 
 func newMockCheckpointManager() checkpointmanager.CheckpointManager {
@@ -309,8 +312,8 @@ func TestCheckpoint(t *testing.T) {
 	as := assert.New(t)
 	ckm := newMockCheckpointManager()
 	testManager := &ManagerImpl{
-		allDevices:        make(map[string]sets.String),
 		healthyDevices:    make(map[string]sets.String),
+		allocatedDevices:  make(map[string]sets.String),
 		podDevices:        make(podDevices),
 		checkpointManager: ckm,
 	}
@@ -424,7 +427,7 @@ func makePod(limits v1.ResourceList) *v1.Pod {
 
 func getTestManager(tmpDir string, activePods ActivePodsFunc, testRes []TestResource) *ManagerImpl {
 	monitorCallback := func(resourceName string, added, updated, deleted []pluginapi.Device) {}
-	ckm := newMockCheckpointManager()
+	ckm, _ := checkpointmanager.NewCheckpointManager("/tmp")
 	testManager := &ManagerImpl{
 		socketdir:         tmpDir,
 		callback:          monitorCallback,
@@ -527,10 +530,6 @@ type TestResource struct {
 }
 
 func TestPodContainerDeviceAllocation(t *testing.T) {
-	flag.Set("alsologtostderr", fmt.Sprintf("%t", true))
-	var logLevel string
-	flag.StringVar(&logLevel, "logLevel", "4", "test")
-	flag.Lookup("v").Value.Set(logLevel)
 	res1 := TestResource{
 		resourceName:     "domain1.com/resource1",
 		resourceQuantity: *resource.NewQuantity(int64(2), resource.DecimalSI),
@@ -727,7 +726,7 @@ func TestSanitizeNodeAllocatable(t *testing.T) {
 	ckm := newMockCheckpointManager()
 	testManager := &ManagerImpl{
 		callback:          monitorCallback,
-		allDevices:        make(map[string]sets.String),
+		allocatedDevices:  make(map[string]sets.String),
 		healthyDevices:    make(map[string]sets.String),
 		podDevices:        make(podDevices),
 		checkpointManager: ckm,

@@ -453,7 +453,7 @@ func (m *ManagerImpl) readCheckpoint() error {
 	checkpoint := NewDevicePluginCheckpoint()
 	err := m.checkpointManager.GetCheckpoint(kubeletDevicePluginCheckpoint, checkpoint)
 	if err != nil {
-		if err == errors.CheckpointNotFoundError {
+		if err == errors.ErrCheckpointNotFound {
 			glog.Warningf("Failed to retrieve checkpoint for %q: %v", kubeletDevicePluginCheckpoint, err)
 			return nil
 		}

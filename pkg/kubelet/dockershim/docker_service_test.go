@@ -67,10 +67,14 @@ func (ckm *mockCheckpointManager) RemoveCheckpoint(checkpointKey string) error {
 
 func (ckm *mockCheckpointManager) ListCheckpoints() ([]string, error) {
 	var keys []string
-	for key, _ := range ckm.checkpoint {
+	for key := range ckm.checkpoint {
 		keys = append(keys, key)
 	}
 	return keys, nil
+}
+
+func (ckm *mockCheckpointManager) GetCheckpointDir() string {
+	return ""
 }
 
 func newMockCheckpointManager() checkpointmanager.CheckpointManager {

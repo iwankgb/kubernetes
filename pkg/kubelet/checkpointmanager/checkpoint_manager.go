@@ -18,6 +18,7 @@ package checkpointmanager
 
 import (
 	"fmt"
+	"sync"
 
 	utilstore "k8s.io/kubernetes/pkg/kubelet/util/store"
 	utilfs "k8s.io/kubernetes/pkg/util/filesystem"
@@ -41,23 +42,31 @@ type CheckpointManager interface {
 	RemoveCheckpoint(checkpointKey string) error
 	// ListCheckpoint returns the list of existing checkpoints.
 	ListCheckpoints() ([]string, error)
+	// Returns base path of checkpointing directory
+	GetCheckpointDir() string
 }
 
-// CheckpointManagerImpl is an implementation of CheckpointManager. It persists checkpoint in CheckpointStore
-type CheckpointManagerImpl struct {
+// Impl is an implementation of CheckpointManager. It persists checkpoint in CheckpointStore
+type Impl struct {
+	Path  string
 	store utilstore.Store
+	mutex sync.Mutex
 }
 
+// NewCheckpointManager returns a new instance of a checkpoint manager
 func NewCheckpointManager(checkpointDir string) (CheckpointManager, error) {
 	fstore, err := utilstore.NewFileStore(checkpointDir, utilfs.DefaultFs{})
 	if err != nil {
 		return nil, err
 	}
-	return &CheckpointManagerImpl{store: fstore}, nil
+
+	return &Impl{Path: checkpointDir, store: fstore}, nil
 }
 
 // CreateCheckpoint persists checkpoint in CheckpointStore.
-func (manager *CheckpointManagerImpl) CreateCheckpoint(checkpointKey string, checkpoint Checkpoint) error {
+func (manager *Impl) CreateCheckpoint(checkpointKey string, checkpoint Checkpoint) error {
+	manager.mutex.Lock()
+	defer manager.mutex.Unlock()
 	checkpoint.UpdateChecksum()
 	blob, err := checkpoint.MarshalCheckpoint()
 	if err != nil {
@@ -67,7 +76,9 @@ func (manager *CheckpointManagerImpl) CreateCheckpoint(checkpointKey string, che
 }
 
 // GetCheckpoint retrieves checkpoint from CheckpointStore.
-func (manager *CheckpointManagerImpl) GetCheckpoint(checkpointKey string, checkpoint Checkpoint) error {
+func (manager *Impl) GetCheckpoint(checkpointKey string, checkpoint Checkpoint) error {
+	manager.mutex.Lock()
+	defer manager.mutex.Unlock()
 	blob, err := manager.store.Read(checkpointKey)
 	if err != nil {
 		return err
@@ -76,16 +87,25 @@ func (manager *CheckpointManagerImpl) GetCheckpoint(checkpointKey string, checkp
 	return err
 }
 
-// WARNING: RemoveCheckpoint will not return error if checkpoint does not exist.
-func (manager *CheckpointManagerImpl) RemoveCheckpoint(checkpointKey string) error {
+// RemoveCheckpoint will not return error if checkpoint does not exist.
+func (manager *Impl) RemoveCheckpoint(checkpointKey string) error {
+	manager.mutex.Lock()
+	defer manager.mutex.Unlock()
 	return manager.store.Delete(checkpointKey)
 }
 
-// ListCheckpoint returns the list of existing checkpoints.
-func (manager *CheckpointManagerImpl) ListCheckpoints() ([]string, error) {
+// ListCheckpoints returns the list of existing checkpoints.
+func (manager *Impl) ListCheckpoints() ([]string, error) {
+	manager.mutex.Lock()
+	defer manager.mutex.Unlock()
 	keys, err := manager.store.List()
 	if err != nil {
 		return []string{}, fmt.Errorf("failed to list checkpoint store: %v", err)
 	}
 	return keys, nil
+}
+
+// GetCheckpointDir returns base path of checkpointing directory
+func (manager *Impl) GetCheckpointDir() string {
+	return manager.Path
 }

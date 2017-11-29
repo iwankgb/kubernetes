@@ -39,42 +39,48 @@ type podDevicesCheckpointEntry struct {
 type checkpointData struct {
 	podDeviceEntries  []podDevicesCheckpointEntry
 	RegisteredDevices map[string][]string
-	CheckSum          uint64
+	Checksum          uint64
 }
 
+// NewDevicePluginCheckpoint returns an instance of Checkpoint
 func NewDevicePluginCheckpoint() checkpointmanager.Checkpoint {
 	return &checkpointData{RegisteredDevices: make(map[string][]string)}
 }
 
+// MarshalCheckpoint returns marshalled data
 func (cp *checkpointData) MarshalCheckpoint() ([]byte, error) {
 	return json.Marshal(*cp)
 }
 
+// UnmarshalCheckpoint returns unmarshalled data
 func (cp *checkpointData) UnmarshalCheckpoint(blob []byte) error {
 	err := json.Unmarshal(blob, cp)
-	cksum := cp.CheckSum
+	cksum := cp.Checksum
 	if cksum != cp.GetChecksum() {
-		return errors.CorruptCheckpointError
+		return errors.ErrCorruptCheckpoint
 	}
 	return err
 }
 
+// GetChecksum returns calculated checksum of checkpoint data
 func (cp *checkpointData) GetChecksum() uint64 {
-	orig := cp.CheckSum
-	cp.CheckSum = 0
+	orig := cp.Checksum
+	cp.Checksum = 0
 	hash := fnv.New32a()
 	hashutil.DeepHashObject(hash, *cp)
-	cp.CheckSum = orig
+	cp.Checksum = orig
 	return uint64(hash.Sum32())
 }
 
+// VerifyChecksum verifies that passed checksum is same as calculated checksum
 func (cp *checkpointData) VerifyChecksum() error {
-	if cp.CheckSum != cp.GetChecksum() {
-		return errors.CorruptCheckpointError
+	if cp.Checksum != cp.GetChecksum() {
+		return errors.ErrCorruptCheckpoint
 	}
 	return nil
 }
 
+// UpdateChecksum updates checksum in the checkpoint data
 func (cp *checkpointData) UpdateChecksum() {
-	cp.CheckSum = cp.GetChecksum()
+	cp.Checksum = cp.GetChecksum()
 }

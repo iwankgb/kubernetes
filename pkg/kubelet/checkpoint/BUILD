@@ -7,9 +7,9 @@ go_library(
     visibility = ["//visibility:public"],
     deps = [
         "//pkg/apis/core:go_default_library",
-        "//pkg/volume/util:go_default_library",
-        "//vendor/github.com/dchest/safefile:go_default_library",
-        "//vendor/github.com/ghodss/yaml:go_default_library",
+        "//pkg/kubelet/checkpointmanager:go_default_library",
+        "//pkg/kubelet/checkpointmanager/errors:go_default_library",
+        "//pkg/util/hash:go_default_library",
         "//vendor/github.com/golang/glog:go_default_library",
         "//vendor/k8s.io/api/core/v1:go_default_library",
     ],
@@ -22,6 +22,7 @@ go_test(
     importpath = "k8s.io/kubernetes/pkg/kubelet/checkpoint",
     deps = [
         "//pkg/apis/core:go_default_library",
+        "//pkg/kubelet/checkpointmanager:go_default_library",
         "//vendor/k8s.io/api/core/v1:go_default_library",
         "//vendor/k8s.io/apimachinery/pkg/apis/meta/v1:go_default_library",
     ],

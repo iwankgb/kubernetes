@@ -19,8 +19,8 @@ go_library(
 go_test(
     name = "go_default_test",
     srcs = ["checkpoint_manager_test.go"],
+    embed = [":go_default_library"],
     importpath = "k8s.io/kubernetes/pkg/kubelet/checkpointmanager",
-    library = ":go_default_library",
     deps = [
         "//pkg/kubelet/checkpointmanager/errors:go_default_library",
         "//pkg/kubelet/checkpointmanager/testing:go_default_library",

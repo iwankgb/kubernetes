@@ -62,7 +62,7 @@ type PodSandboxCheckpoint struct {
 	// Data to checkpoint for pod sandbox.
 	Data *CheckpointData `json:"data,omitempty"`
 	// Checksum is calculated with fnv hash of the checkpoint object with checksum field set to be zero
-	CheckSum uint64 `json:"checksum"`
+	Checksum uint64 `json:"checksum"`
 }
 
 func NewPodSandboxCheckpoint(namespace, name string) checkpointmanager.Checkpoint {
@@ -80,29 +80,29 @@ func (cp *PodSandboxCheckpoint) MarshalCheckpoint() ([]byte, error) {
 
 func (cp *PodSandboxCheckpoint) UnmarshalCheckpoint(blob []byte) error {
 	err := json.Unmarshal(blob, cp)
-	cksum := cp.CheckSum
+	cksum := cp.Checksum
 	if cksum != cp.GetChecksum() {
-		return errors.CorruptCheckpointError
+		return errors.ErrCorruptCheckpoint
 	}
 	return err
 }
 
 func (cp *PodSandboxCheckpoint) GetChecksum() uint64 {
-	orig := cp.CheckSum
-	cp.CheckSum = 0
+	orig := cp.Checksum
+	cp.Checksum = 0
 	hash := fnv.New32a()
 	hashutil.DeepHashObject(hash, *cp)
-	cp.CheckSum = orig
+	cp.Checksum = orig
 	return uint64(hash.Sum32())
 }
 
 func (cp *PodSandboxCheckpoint) VerifyChecksum() error {
-	if cp.CheckSum != cp.GetChecksum() {
-		return errors.CorruptCheckpointError
+	if cp.Checksum != cp.GetChecksum() {
+		return errors.ErrCorruptCheckpoint
 	}
 	return nil
 }
 
 func (cp *PodSandboxCheckpoint) UpdateChecksum() {
-	cp.CheckSum = cp.GetChecksum()
+	cp.Checksum = cp.GetChecksum()
 }
