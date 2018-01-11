@@ -34,7 +34,6 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/config"
 	"k8s.io/kubernetes/pkg/kubelet/configmap"
 	containertest "k8s.io/kubernetes/pkg/kubelet/container/testing"
-	//	"k8s.io/kubernetes/pkg/kubelet/pod"
 	kubepod "k8s.io/kubernetes/pkg/kubelet/pod"
 	podtest "k8s.io/kubernetes/pkg/kubelet/pod/testing"
 	"k8s.io/kubernetes/pkg/kubelet/secret"
