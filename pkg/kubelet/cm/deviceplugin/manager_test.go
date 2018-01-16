@@ -17,6 +17,7 @@ limitations under the License.
 package deviceplugin
 
 import (
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -525,6 +526,7 @@ type TestResource struct {
 }
 
 func TestPodContainerDeviceAllocation(t *testing.T) {
+	flag.Set("alsologtostderr", fmt.Sprintf("%t", true))
 	res1 := TestResource{
 		resourceName:     "domain1.com/resource1",
 		resourceQuantity: *resource.NewQuantity(int64(2), resource.DecimalSI),
