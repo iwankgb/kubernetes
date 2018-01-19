@@ -267,6 +267,8 @@ func NewDockerService(config *ClientConfig, podSandboxImage string, streamingCon
 type CRIService interface {
 	runtimeapi.RuntimeServiceServer
 	runtimeapi.ImageServiceServer
+
+	Start() error
 }
 
 // DockerService is an interface that embeds the new RuntimeService and
@@ -274,7 +276,6 @@ type CRIService interface {
 type DockerService interface {
 	CRIService
 
-	Start() error
 	// For serving streaming calls.
 	http.Handler
 
