@@ -37,7 +37,6 @@ func newKubeletServerOrDie() *KubeletServer {
 
 func cleanFlags(s *KubeletServer) {
 	s.DynamicConfigDir = utilflag.NewStringFlag(s.DynamicConfigDir.Value())
-	s.KubeletConfigFile = utilflag.NewStringFlag(s.KubeletConfigFile.Value())
 }
 
 // TestRoundTrip ensures that flag values from the Kubelet can be serialized
