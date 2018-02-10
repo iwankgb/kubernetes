@@ -30,6 +30,7 @@ type Checkpoint interface {
 	UnmarshalCheckpoint(blob []byte) error
 	GetChecksum() uint64
 	UpdateChecksum()
+	IsChecksumValid() bool
 }
 
 // CheckpointManager provides the interface to manage checkpoint

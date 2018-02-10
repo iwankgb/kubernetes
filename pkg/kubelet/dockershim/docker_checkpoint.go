@@ -106,3 +106,8 @@ func (cp *PodSandboxCheckpoint) VerifyChecksum() error {
 func (cp *PodSandboxCheckpoint) UpdateChecksum() {
 	cp.Checksum = cp.GetChecksum()
 }
+
+//IsChecksumValid validates stored checksum against newly calculated one
+func (cp *PodSandboxCheckpoint) IsChecksumValid() bool {
+	return cp.Checksum == cp.GetChecksum()
+}

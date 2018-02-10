@@ -85,6 +85,11 @@ func (cp *Data) UpdateChecksum() {
 	cp.Checksum = cp.GetChecksum()
 }
 
+//IsChecksumValid validates stored checksum against newly calculated one
+func (cp *Data) IsChecksumValid() bool {
+	return cp.Checksum == cp.GetChecksum()
+}
+
 // checkAnnotations will validate the checkpoint annotations exist on the Pod
 func checkAnnotations(pod *v1.Pod) bool {
 	if podAnnotations := pod.GetAnnotations(); podAnnotations != nil {

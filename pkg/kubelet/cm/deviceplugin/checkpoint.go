@@ -84,3 +84,8 @@ func (cp *checkpointData) VerifyChecksum() error {
 func (cp *checkpointData) UpdateChecksum() {
 	cp.Checksum = cp.GetChecksum()
 }
+
+//IsChecksumValid validates stored checksum against newly calculated one
+func (cp *checkpointData) IsChecksumValid() bool {
+	return cp.Checksum == cp.GetChecksum()
+}

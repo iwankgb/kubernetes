@@ -90,6 +90,11 @@ func (cp *CheckpointData) UpdateChecksum() {
 	cp.Checksum = cp.GetChecksum()
 }
 
+//IsChecksumValid validates stored checksum against newly calculated one
+func (cp *CheckpointData) IsChecksumValid() bool {
+	return cp.Checksum == cp.GetChecksum()
+}
+
 func NewTestCheckpointManager() CheckpointManager {
 	return &Impl{store: utilstore.NewMemStore()}
 }
