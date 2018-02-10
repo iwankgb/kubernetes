@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"sync"
 
+	"k8s.io/kubernetes/pkg/kubelet/checkpointmanager/errors"
 	utilstore "k8s.io/kubernetes/pkg/kubelet/util/store"
 	utilfs "k8s.io/kubernetes/pkg/util/filesystem"
 )
@@ -84,8 +85,17 @@ func (manager *Impl) GetCheckpoint(checkpointKey string, checkpoint Checkpoint) 
 	if err != nil {
 		return err
 	}
+
 	err = checkpoint.UnmarshalCheckpoint(blob)
-	return err
+	if err != nil {
+		return err
+	}
+
+	if !checkpoint.IsChecksumValid() {
+		return errors.ErrCorruptCheckpoint
+	}
+
+	return nil
 }
 
 // RemoveCheckpoint will not return error if checkpoint does not exist.

@@ -64,10 +64,6 @@ func (cp *CheckpointData) MarshalCheckpoint() ([]byte, error) {
 
 func (cp *CheckpointData) UnmarshalCheckpoint(blob []byte) error {
 	err := json.Unmarshal(blob, cp)
-	cksum := cp.Checksum
-	if cksum != cp.GetChecksum() {
-		return errors.ErrCorruptCheckpoint
-	}
 	return err
 }
 
