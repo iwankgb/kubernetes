@@ -92,13 +92,6 @@ func (cp *PodSandboxCheckpoint) GetChecksum() uint64 {
 	return uint64(hash.Sum32())
 }
 
-func (cp *PodSandboxCheckpoint) VerifyChecksum() error {
-	if cp.Checksum != cp.GetChecksum() {
-		return errors.ErrCorruptCheckpoint
-	}
-	return nil
-}
-
 func (cp *PodSandboxCheckpoint) UpdateChecksum() {
 	cp.Checksum = cp.GetChecksum()
 }

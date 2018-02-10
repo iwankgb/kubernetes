@@ -68,14 +68,6 @@ func (cp *checkpointData) GetChecksum() uint64 {
 	return uint64(hash.Sum32())
 }
 
-// VerifyChecksum verifies that passed checksum is same as calculated checksum
-func (cp *checkpointData) VerifyChecksum() error {
-	if cp.Checksum != cp.GetChecksum() {
-		return errors.ErrCorruptCheckpoint
-	}
-	return nil
-}
-
 // UpdateChecksum updates checksum in the checkpoint data
 func (cp *checkpointData) UpdateChecksum() {
 	cp.Checksum = cp.GetChecksum()

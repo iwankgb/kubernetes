@@ -26,7 +26,6 @@ import (
 	"k8s.io/api/core/v1"
 	"k8s.io/kubernetes/pkg/apis/core"
 	"k8s.io/kubernetes/pkg/kubelet/checkpointmanager"
-	"k8s.io/kubernetes/pkg/kubelet/checkpointmanager/errors"
 	hashutil "k8s.io/kubernetes/pkg/util/hash"
 )
 
@@ -66,14 +65,6 @@ func (cp *Data) GetChecksum() uint64 {
 	hashutil.DeepHashObject(hash, *cp)
 	cp.Checksum = orig
 	return uint64(hash.Sum32())
-}
-
-// VerifyChecksum verifies that passed checksum is same as calculated checksum
-func (cp *Data) VerifyChecksum() error {
-	if cp.Checksum != cp.GetChecksum() {
-		return errors.ErrCorruptCheckpoint
-	}
-	return nil
 }
 
 // UpdateChecksum updates checksum in the checkpoint data

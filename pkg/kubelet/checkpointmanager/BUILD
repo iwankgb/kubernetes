@@ -22,7 +22,6 @@ go_test(
     embed = [":go_default_library"],
     importpath = "k8s.io/kubernetes/pkg/kubelet/checkpointmanager",
     deps = [
-        "//pkg/kubelet/checkpointmanager/errors:go_default_library",
         "//pkg/kubelet/checkpointmanager/testing:go_default_library",
         "//pkg/util/hash:go_default_library",
         "//vendor/github.com/stretchr/testify/assert:go_default_library",

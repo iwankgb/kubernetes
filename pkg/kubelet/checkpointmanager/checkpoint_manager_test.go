@@ -76,12 +76,6 @@ func (cp *CheckpointData) GetChecksum() uint64 {
 	return uint64(hash.Sum32())
 }
 
-func (cp *CheckpointData) VerifyChecksum() error {
-	if cp.Checksum != cp.GetChecksum() {
-		return errors.ErrCorruptCheckpoint
-	}
-	return nil
-}
 func (cp *CheckpointData) UpdateChecksum() {
 	cp.Checksum = cp.GetChecksum()
 }
